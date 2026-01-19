@@ -13,8 +13,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
-      // TODO: Add navigation logic later (e.g. to MyTripsScreen, etc.)
     });
+    
+    // Navigate based on selected tab
+    if (index == 1) {
+      // My Trips
+      Navigator.pushNamed(context, '/my-trips');
+    } else if (index == 2) {
+      // Browse - TODO: implement browse screen
+    } else if (index == 3) {
+      // Gallery - TODO: implement gallery screen
+    }
   }
 
   @override
