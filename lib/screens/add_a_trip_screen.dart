@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class AddATripScreen extends StatefulWidget {
   const AddATripScreen({super.key});
@@ -19,6 +21,8 @@ class _AddATripScreenState extends State<AddATripScreen> {
   DateTime? _endDate;
   String _selectedBudget = 'Medium';
   int _numberOfPeople = 1;
+  File? _selectedImage;
+  String? _imageUrl;
 
   // Trip types
   final Map<String, bool> _tripTypes = {
@@ -58,6 +62,27 @@ class _AddATripScreenState extends State<AddATripScreen> {
           _endDate = picked;
         }
       });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      _showSnackBar('Failed to pick image');
     }
   }
 
@@ -115,6 +140,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'open', // open, full, completed, cancelled
         'joinedUsers': [], // List of user IDs who joined
+        'imageUrl': _selectedImage?.path ?? '', // Store local path for now
       };
 
       debugPrint('Trip data prepared: $tripData');
@@ -193,9 +219,59 @@ class _AddATripScreenState extends State<AddATripScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Photo selection
+                const Text(
+                  '1. Trip Photo (Optional)',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _pickImage,
+                  child: Container(
+                    height: 200,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: _selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedImage!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_photo_alternate,
+                                size: 60,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap to add a photo',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Destination
                 const Text(
-                  '1. Destination *',
+                  '2. Destination *',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -225,7 +301,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
 
                 // Travel Dates
                 const Text(
-                  '2. Travel Dates *',
+                  '3. Travel Dates *',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -312,7 +388,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
 
                 // Budget Range
                 const Text(
-                  '3. Budget Range *',
+                  '4. Budget Range *',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -333,7 +409,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
 
                 // Number of People
                 const Text(
-                  '4. Number of Travel Mates *',
+                  '5. Number of Travel Mates *',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -389,7 +465,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
 
                 // Trip Type
                 const Text(
-                  '5. Trip Type / Travel Style *',
+                  '6. Trip Type / Travel Style *',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -418,7 +494,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
 
                 // Description
                 const Text(
-                  '6. Description (Optional)',
+                  '7. Description (Optional)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

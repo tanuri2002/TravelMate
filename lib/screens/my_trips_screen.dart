@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'dart:io';
 
 class MyTripsScreen extends StatefulWidget {
   const MyTripsScreen({super.key});
@@ -181,6 +182,30 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
     );
   }
 
+  Widget _buildPlaceholderImage() {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.teal.shade300,
+            Colors.teal.shade600,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.landscape,
+          size: 80,
+          color: Colors.white.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTripCard(Map<String, dynamic> trip) {
     final status = trip['status'] ?? 'open';
     final numberOfPeople = trip['numberOfPeople'] ?? 1;
@@ -203,21 +228,20 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.teal.shade300,
-                      Colors.teal.shade600,
-                    ],
-                  ),
                 ),
-                child: Center(
-                  child: Icon(
-                    Icons.landscape,
-                    size: 80,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: (trip['imageUrl'] != null && trip['imageUrl'].toString().isNotEmpty)
+                      ? Image.file(
+                          File(trip['imageUrl']),
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholderImage();
+                          },
+                        )
+                      : _buildPlaceholderImage(),
                 ),
               ),
               Positioned(
