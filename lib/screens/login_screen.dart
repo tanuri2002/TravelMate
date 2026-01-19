@@ -24,99 +24,106 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 60),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/Login.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 60),
 
-                // Title
-                const Text(
-                  'Login',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Username
-                _buildTextField(
-                  controller: _usernameController,
-                  hint: 'Username',
-                ),
-
-                const SizedBox(height: 20),
-
-                // Password
-                _buildTextField(
-                  controller: _passwordController,
-                  hint: 'Password',
-                  obscureText: true,
-                ),
-
-                const SizedBox(height: 32),
-
-                // Login Button
-                ElevatedButton(
-                  onPressed: () {
-                    // TODO: Add login logic
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD9D9D9),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: const Text(
+                  // Title
+                  const Text(
                     'Login',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 40),
 
-                // Sign Up text (only Sign Up clickable)
-                RichText(
-                  text: TextSpan(
-                    text: "Don't have an account? ",
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
-                    children: [
-                      TextSpan(
-                        text: 'Sign Up',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SignUpScreen(),
-                              ),
-                            );
-                          },
+                  // Username
+                  _buildTextField(
+                    controller: _usernameController,
+                    hint: 'Username',
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Password
+                  _buildTextField(
+                    controller: _passwordController,
+                    hint: 'Password',
+                    obscureText: true,
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Login Button
+                  ElevatedButton(
+                    onPressed: () {
+                      // TODO: Add login logic
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD9D9D9),
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 48,
+                        vertical: 16,
                       ),
-                    ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 60),
-              ],
+                  const SizedBox(height: 16),
+
+                  // Sign Up text (only Sign Up clickable)
+                  RichText(
+                    text: TextSpan(
+                      text: "Don't have an account? ",
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      children: [
+                        TextSpan(
+                          text: 'Sign Up',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.blue,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignUpScreen(),
+                                ),
+                              );
+                            },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+                ],
+              ),
             ),
           ),
         ),
