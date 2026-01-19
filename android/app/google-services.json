@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "74854138354",
+    "firebase_url": "https://travelmate-d5283-default-rtdb.firebaseio.com",
+    "project_id": "travelmate-d5283",
+    "storage_bucket": "travelmate-d5283.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:74854138354:android:9b79d394424142218aeb6b",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUSpBSMx9pvh1LT4qul8JZNkrOSip7iRQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

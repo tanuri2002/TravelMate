@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -31,7 +33,8 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 60),
-                // Login Title
+
+                // Title
                 const Text(
                   'Login',
                   style: TextStyle(
@@ -40,58 +43,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Colors.black,
                   ),
                 ),
+
                 const SizedBox(height: 40),
-                // Username Field
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD9D9D9),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: TextField(
-                    controller: _usernameController,
-                    decoration: const InputDecoration(
-                      hintText: 'Username',
-                      hintStyle: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 18,
-                      ),
-                    ),
-                  ),
+
+                // Username
+                _buildTextField(
+                  controller: _usernameController,
+                  hint: 'Username',
                 ),
+
                 const SizedBox(height: 20),
-                // Password Field
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD9D9D9),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Password',
-                      hintStyle: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 18,
-                      ),
-                    ),
-                  ),
+
+                // Password
+                _buildTextField(
+                  controller: _passwordController,
+                  hint: 'Password',
+                  obscureText: true,
                 ),
+
                 const SizedBox(height: 32),
+
                 // Login Button
                 ElevatedButton(
                   onPressed: () {
-                    // Handle login logic here
+                    // TODO: Add login logic
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD9D9D9),
@@ -107,34 +82,69 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: const Text(
                     'Login',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
                   ),
                 ),
-                const SizedBox(height: 24),
-                // Sign up link
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignUpScreen(),
+
+                const SizedBox(height: 16),
+
+                // Sign Up text (only Sign Up clickable)
+                RichText(
+                  text: TextSpan(
+                    text: "Don't have an account? ",
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    children: [
+                      TextSpan(
+                        text: 'Sign Up',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignUpScreen(),
+                              ),
+                            );
+                          },
                       ),
-                    );
-                  },
-                  child: const Text(
-                    'Already have an Account? Please Login',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
+                    ],
                   ),
                 ),
+
                 const SizedBox(height: 60),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Reusable TextField
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    bool obscureText = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFD9D9D9),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.black87, fontSize: 16),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 18,
           ),
         ),
       ),
