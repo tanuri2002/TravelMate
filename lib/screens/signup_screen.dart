@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import 'login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -15,6 +15,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -22,6 +25,107 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signUpUser() async {
+    final name = _nameController.text.trim();
+    final contact = _contactController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // Basic validation
+    if (name.isEmpty || contact.isEmpty || email.isEmpty || password.isEmpty) {
+      _showSnackBar("Please fill in all fields");
+      return;
+    }
+
+    if (password.length < 6) {
+      _showSnackBar("Password must be at least 6 characters");
+      return;
+    }
+
+    // Very basic contact number check (you can make this stricter)
+    if (contact.length < 9 || !RegExp(r'^[0-9+]+$').hasMatch(contact)) {
+      _showSnackBar("Please enter a valid contact number");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. Create user with email & password
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      final uid = userCredential.user?.uid;
+      if (uid == null) {
+        throw Exception("User created but UID is null");
+      }
+
+      // 2. Save user data to Realtime Database
+      final DatabaseReference db = FirebaseDatabase.instance.ref();
+      await db.child("users").child(uid).set({
+        "name": name,
+        "contact": contact,
+        "email": email,
+        "createdAt": DateTime.now().toIso8601String(),
+      });
+
+      // 3. Optional: Set display name in Firebase Auth
+      await userCredential.user?.updateDisplayName(name);
+
+      // 4. Success → navigate to home or welcome screen
+      if (!mounted) return;
+
+      // Option A: Go back to Login screen (most common & clean)
+      Navigator.pop(context); // ← removes Signup screen
+      _showSnackBar("Account created! Please login");
+
+      _showSnackBar("Account created successfully!");
+    } on FirebaseAuthException catch (e) {
+      String message;
+
+      switch (e.code) {
+        case 'weak-password':
+          message = "Password is too weak";
+          break;
+        case 'email-already-in-use':
+          message = "This email is already registered";
+          break;
+        case 'invalid-email':
+          message = "Invalid email format";
+          break;
+        case 'operation-not-allowed':
+          message = "Sign up is currently disabled. Contact support.";
+          break;
+        case 'too-many-requests':
+          message = "Too many attempts. Please try again later.";
+          break;
+        default:
+          message = e.message ?? "Authentication failed";
+      }
+
+      _showSnackBar(message);
+    } on FirebaseException catch (e) {
+      _showSnackBar("Database error: ${e.message ?? 'Unknown error'}");
+    } catch (e) {
+      debugPrint("Signup error: $e");
+      _showSnackBar("Something went wrong. Please try again.");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(milliseconds: 2200),
+      ),
+    );
   }
 
   @override
@@ -37,20 +141,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
               children: [
                 const SizedBox(height: 60),
 
-                // Title
+                // Logo or App Name
                 const Text(
-                  'Sign Up',
+                  'TravelMate',
                   style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black,
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
                   ),
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Create your account',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 48),
 
                 // Name
-                _buildTextField(controller: _nameController, hint: 'Name'),
+                _buildTextField(
+                  controller: _nameController,
+                  hint: 'Full Name',
+                  icon: Icons.person_outline,
+                ),
 
                 const SizedBox(height: 20),
 
@@ -59,6 +172,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _contactController,
                   hint: 'Contact Number',
                   keyboardType: TextInputType.phone,
+                  icon: Icons.phone_outlined,
                 ),
 
                 const SizedBox(height: 20),
@@ -68,6 +182,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _emailController,
                   hint: 'Email',
                   keyboardType: TextInputType.emailAddress,
+                  icon: Icons.email_outlined,
                 ),
 
                 const SizedBox(height: 20),
@@ -76,41 +191,74 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 _buildTextField(
                   controller: _passwordController,
                   hint: 'Password',
-                  obscureText: true,
+                  obscureText: _obscurePassword,
+                  icon: Icons.lock_outline,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
 
-                // Sign Up Button -> Navigates to Login Screen
-                ElevatedButton(
-                  onPressed: () {
-                    // After successful signup (later Firebase)
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
+                // Sign Up Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ElevatedButton(
+                          onPressed: _isLoading ? null : _signUpUser,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'Sign Up',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Already have account
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Already have an account? ",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        "Login",
+                        style: TextStyle(
+                          color: Colors.teal,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD9D9D9),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 16,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: const Text(
-                    'Sign Up',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
-                  ),
+                  ],
                 ),
 
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -119,28 +267,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // Reusable TextField
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
+    IconData? icon,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFD9D9D9),
-        borderRadius: BorderRadius.circular(30),
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
+        style: const TextStyle(fontSize: 16),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.black87, fontSize: 16),
+          hintStyle: TextStyle(color: Colors.grey.shade500),
+          prefixIcon: icon != null
+              ? Icon(icon, color: Colors.grey.shade600)
+              : null,
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
+            horizontal: 20,
             vertical: 18,
           ),
         ),
