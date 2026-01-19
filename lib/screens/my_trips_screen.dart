@@ -152,14 +152,14 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
           if (index == 0) {
             Navigator.pushReplacementNamed(context, '/home');
           } else if (index == 1) {
-            // Already on My Trips → optional: refresh or do nothing
+            Navigator.pushReplacementNamed(context, '/my-trips');
             _loadMyTrips();
           } else if (index == 2) {
-            // Browse
-            Navigator.pushReplacementNamed(context, '/browse');
+            // My Trips
+            Navigator.pushReplacementNamed(context, '/gallery');
           } else if (index == 3) {
             // Gallery
-            Navigator.pushReplacementNamed(context, '/gallery');
+            Navigator.pushReplacementNamed(context, '/account');
           }
         },
         selectedItemColor: Colors.teal,
@@ -168,14 +168,14 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.card_travel),
+            icon: Icon(Icons.travel_explore),
             label: 'My Trips',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Browse'),
           BottomNavigationBarItem(
             icon: Icon(Icons.photo_library),
             label: 'Gallery',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Account'),
         ],
       ),
     );

@@ -12,9 +12,9 @@ class _AccountScreenState extends State<AccountScreen> {
   int _selectedIndex = 3; // Account tab
 
   // Dummy stats
-  final int tripsOrganized = 12;
-  final int tripsJoined = 35;
-  final int photosCount = 150;
+  final int tripsOrganized = 4;
+  final int tripsJoined = 1;
+  final int photosCount = 8;
 
   final List<Map<String, String>> myAdventures = [
     {"title": "Mirissa Whale Watching", "image": "assets/whale.jpeg"},
