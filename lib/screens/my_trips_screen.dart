@@ -10,7 +10,9 @@ class MyTripsScreen extends StatefulWidget {
 }
 
 class _MyTripsScreenState extends State<MyTripsScreen> {
-  final DatabaseReference _tripsRef = FirebaseDatabase.instance.ref().child('my_trips');
+  final DatabaseReference _tripsRef = FirebaseDatabase.instance.ref().child(
+    'my_trips',
+  );
   List<Map<String, dynamic>> _myTrips = [];
   bool _isLoading = true;
 
@@ -22,20 +24,16 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
 
   Future<void> _loadMyTrips() async {
     setState(() => _isLoading = true);
-
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         setState(() => _isLoading = false);
         return;
       }
-
       final snapshot = await _tripsRef.get();
-
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
         List<Map<String, dynamic>> trips = [];
-
         data.forEach((key, value) {
           final tripData = Map<String, dynamic>.from(value as Map);
           if (tripData['createdBy'] == user.uid) {
@@ -43,14 +41,12 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
             trips.add(tripData);
           }
         });
-
         // Sort by creation date (newest first)
         trips.sort((a, b) {
           final aDate = DateTime.parse(a['createdAt'] ?? '');
           final bDate = DateTime.parse(b['createdAt'] ?? '');
           return bDate.compareTo(aDate);
         });
-
         setState(() {
           _myTrips = trips;
           _isLoading = false;
@@ -74,8 +70,20 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
   }
 
   String _formatDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
@@ -97,7 +105,7 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
             onPressed: () async {
               final result = await Navigator.pushNamed(context, '/add-trip');
               if (result == true) {
-                _loadMyTrips(); // Reload trips after creating new one
+                _loadMyTrips();
               }
             },
           ),
@@ -106,37 +114,69 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _myTrips.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadMyTrips,
-                  child: Column(
-                    children: [
-                      // Header with trip count
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        color: Colors.white,
-                        child: Text(
-                          '${_getActiveTripsCount()} active',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
-                      // Trips list
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _myTrips.length,
-                          itemBuilder: (context, index) {
-                            return _buildTripCard(_myTrips[index]);
-                          },
-                        ),
-                      ),
-                    ],
+          ? _buildEmptyState()
+          : RefreshIndicator(
+              onRefresh: _loadMyTrips,
+              child: Column(
+                children: [
+                  // Header with trip count
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.white,
+                    child: Text(
+                      '${_getActiveTripsCount()} active',
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                   ),
-                ),
+                  // Trips list
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _myTrips.length,
+                      itemBuilder: (context, index) {
+                        return _buildTripCard(_myTrips[index]);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      // ───────────────────────────────────────────────────────────────
+      //                   BOTTOM NAVIGATION BAR
+      // ───────────────────────────────────────────────────────────────
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1, // My Trips is index 1
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushReplacementNamed(context, '/home');
+          } else if (index == 1) {
+            // Already on My Trips → optional: refresh or do nothing
+            _loadMyTrips();
+          } else if (index == 2) {
+            // Browse
+            Navigator.pushReplacementNamed(context, '/browse');
+          } else if (index == 3) {
+            // Gallery
+            Navigator.pushReplacementNamed(context, '/gallery');
+          }
+        },
+        selectedItemColor: Colors.teal,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed, // good when > 3 items
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.card_travel),
+            label: 'My Trips',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Browse'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_library),
+            label: 'Gallery',
+          ),
+        ],
+      ),
     );
   }
 
@@ -185,7 +225,6 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
     final status = trip['status'] ?? 'open';
     final numberOfPeople = trip['numberOfPeople'] ?? 1;
     final joinedUsers = (trip['joinedUsers'] as List?)?.length ?? 0;
-    final spotsAvailable = numberOfPeople - joinedUsers;
     final requestCount = 0; // TODO: Implement join requests
 
     return Card(
@@ -202,22 +241,17 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                 height: 200,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Colors.teal.shade300,
-                      Colors.teal.shade600,
-                    ],
+                    colors: [Colors.teal.shade300, Colors.teal.shade600],
                   ),
                 ),
-                child: Center(
-                  child: Icon(
-                    Icons.landscape,
-                    size: 80,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
+                child: const Center(
+                  child: Icon(Icons.landscape, size: 80, color: Colors.white70),
                 ),
               ),
               Positioned(
@@ -227,7 +261,10 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                   children: [
                     if (status == 'open')
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green,
                           borderRadius: BorderRadius.circular(20),
@@ -244,7 +281,10 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                     if (requestCount > 0) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(20),
@@ -264,14 +304,12 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
               ),
             ],
           ),
-
           // Trip details
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Destination
                 Text(
                   trip['destination'] ?? 'Unknown Destination',
                   style: const TextStyle(
@@ -280,11 +318,13 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Dates
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       _formatDateRange(
@@ -296,11 +336,13 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-
-                // Budget
                 Row(
                   children: [
-                    const Icon(Icons.attach_money, size: 18, color: Colors.grey),
+                    const Icon(
+                      Icons.attach_money,
+                      size: 18,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       trip['budget'] ?? 'Medium',
@@ -309,22 +351,19 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-
-                // Spots available
                 Row(
                   children: [
                     const Icon(Icons.people, size: 18, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      '$joinedUsers of $numberOfPeople spots available',
+                      '$joinedUsers / $numberOfPeople spots filled',
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Trip types
-                if (trip['tripTypes'] != null && (trip['tripTypes'] as List).isNotEmpty)
+                if (trip['tripTypes'] != null &&
+                    (trip['tripTypes'] as List).isNotEmpty)
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -341,15 +380,11 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                     }).toList(),
                   ),
                 const SizedBox(height: 16),
-
-                // Action buttons
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          _showManageTripDialog(trip);
-                        },
+                        onPressed: () => _showManageTripDialog(trip),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
@@ -364,9 +399,7 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          _showRequestsDialog(trip);
-                        },
+                        onPressed: () => _showRequestsDialog(trip),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           side: const BorderSide(color: Colors.black),
@@ -403,7 +436,8 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
             const SizedBox(height: 8),
             Text('Status: ${trip['status']}'),
             const SizedBox(height: 8),
-            if (trip['description'] != null && trip['description'].toString().isNotEmpty)
+            if (trip['description'] != null &&
+                trip['description'].toString().isNotEmpty)
               Text('Description: ${trip['description']}'),
           ],
         ),
@@ -430,7 +464,10 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Join Requests'),
-        content: const Text('No join requests yet.\n\nOther users can request to join your trip, and you can accept or decline them here.'),
+        content: const Text(
+          'No join requests yet.\n\n'
+          'Other users can request to join your trip, and you can accept or decline them here.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -450,9 +487,9 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
       _loadMyTrips();
     } catch (e) {
       debugPrint('Error deleting trip: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete trip')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to delete trip')));
     }
   }
 }
