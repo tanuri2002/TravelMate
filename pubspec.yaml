@@ -34,6 +34,7 @@ dependencies:
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
   firebase_database: ^11.1.4
+  image_picker: ^1.0.7
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -41,7 +42,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  image_picker: ^0.8.7+6
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -64,6 +64,9 @@ flutter:
   assets:
     - assets/Welcome.png
     - assets/Login.jpg
+    - assets/whale.jpeg
+    - assets/Untitled.jpeg
+    - assets/ella.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

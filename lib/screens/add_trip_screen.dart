@@ -2,10 +2,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'gallery_screen.dart'; // import Trip class
 
 class AddTripScreen extends StatefulWidget {
-  final Function(Trip) onSave;
+  final Future<void> Function(String name, String date, List<File> photos)
+  onSave;
 
   const AddTripScreen({super.key, required this.onSave});
 
@@ -18,7 +18,6 @@ class _AddTripScreenState extends State<AddTripScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   List<File> _selectedPhotos = [];
-
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImages() async {
@@ -47,7 +46,6 @@ class _AddTripScreenState extends State<AddTripScreen> {
           ? DateTimeRange(start: _startDate!, end: _endDate!)
           : null,
     );
-
     if (range != null) {
       setState(() {
         _startDate = range.start;
@@ -63,7 +61,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
         title: const Text("New Trip"),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               if (_nameController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Please enter trip name")),
@@ -77,14 +75,16 @@ class _AddTripScreenState extends State<AddTripScreen> {
                 return;
               }
 
-              final trip = Trip(
-                name: _nameController.text.trim(),
-                date: _formatDateRange(),
-                photos: _selectedPhotos,
+              // Call the parent's save function
+              await widget.onSave(
+                _nameController.text.trim(),
+                _formatDateRange(),
+                _selectedPhotos,
               );
 
-              widget.onSave(trip);
-              Navigator.pop(context);
+              if (mounted) {
+                Navigator.pop(context);
+              }
             },
             child: const Text("Save", style: TextStyle(fontSize: 17)),
           ),
@@ -151,7 +151,7 @@ class _AddTripScreenState extends State<AddTripScreen> {
   }
 }
 
-// Extension helper
+// Extension helper (unchanged)
 extension DateHelper on DateTime {
   String get monthName {
     const months = [
