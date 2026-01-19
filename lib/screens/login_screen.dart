@@ -35,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Sign in with Firebase Auth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -43,13 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Navigate to home screen on success
       Navigator.pushReplacementNamed(context, '/home');
-
       _showSnackBar("Login successful!");
     } on FirebaseAuthException catch (e) {
       String message;
-
       switch (e.code) {
         case 'user-not-found':
           message = "No account found with this email";
@@ -69,15 +65,12 @@ class _LoginScreenState extends State<LoginScreen> {
         default:
           message = e.message ?? "Login failed";
       }
-
       _showSnackBar(message);
     } catch (e) {
       debugPrint("Login error: $e");
       _showSnackBar("Something went wrong. Please try again.");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -94,115 +87,122 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 60),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/Login.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 60),
 
-                // App Name / Logo
-                const Text(
-                  'TravelMate',
-                  style: TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Sign in to continue',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-
-                const SizedBox(height: 48),
-
-                // Email field
-                _buildTextField(
-                  controller: _emailController,
-                  hint: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  icon: Icons.email_outlined,
-                ),
-
-                const SizedBox(height: 20),
-
-                // Password field with visibility toggle
-                _buildTextField(
-                  controller: _passwordController,
-                  hint: 'Password',
-                  obscureText: _obscurePassword,
-                  icon: Icons.lock_outline,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.grey.shade600,
+                  // App Name / Logo
+                  const Text(
+                    'TravelMate',
+                    style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    onPressed: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Sign in to continue',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
 
-                const SizedBox(height: 40),
+                  const SizedBox(height: 48),
 
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ElevatedButton(
-                          onPressed: _isLoading ? null : _loginUser,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            elevation: 2,
-                          ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                ),
+                  // Email field
+                  _buildTextField(
+                    controller: _emailController,
+                    hint: 'Email',
+                    keyboardType: TextInputType.emailAddress,
+                    icon: Icons.email_outlined,
+                  ),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                // Don't have account → Sign Up link
-                RichText(
-                  text: TextSpan(
-                    text: "Don't have an account? ",
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
-                    children: [
-                      TextSpan(
-                        text: 'Sign Up',
-                        style: const TextStyle(
-                          color: Colors.teal,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            Navigator.pushNamed(context, '/signup');
-                          },
+                  // Password field with visibility toggle
+                  _buildTextField(
+                    controller: _passwordController,
+                    hint: 'Password',
+                    obscureText: _obscurePassword,
+                    icon: Icons.lock_outline,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey.shade600,
                       ),
-                    ],
+                      onPressed: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 40),
-              ],
+                  const SizedBox(height: 40),
+
+                  // Login Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : ElevatedButton(
+                            onPressed: _isLoading ? null : _loginUser,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 2,
+                            ),
+                            child: const Text(
+                              'Login',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Don't have account → Sign Up link
+                  RichText(
+                    text: TextSpan(
+                      text: "Don't have an account? ",
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                      children: [
+                        TextSpan(
+                          text: 'Sign Up',
+                          style: const TextStyle(
+                            color: Colors.teal,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              Navigator.pushNamed(context, '/signup');
+                            },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+                ],
+              ),
             ),
           ),
         ),
