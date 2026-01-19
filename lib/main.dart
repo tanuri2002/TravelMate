@@ -6,6 +6,8 @@ import 'screens/welcome_screen.dart'; // your starting screen
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart'; // ← must import this
 import 'screens/home_screen.dart'; // ← dummy home you created earlier
+import 'screens/add_a_trip_screen.dart';
+import 'screens/my_trips_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +33,8 @@ class TravelMateApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
         '/home': (context) => const HomeScreen(),
+        '/add-trip': (context) => const AddATripScreen(),
+        '/my-trips': (context) => const MyTripsScreen(),
       },
     );
   }

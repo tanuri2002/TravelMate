@@ -35,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Sign in with Firebase Auth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -42,10 +43,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      // Navigate to home screen on success
       Navigator.pushReplacementNamed(context, '/home');
+
       _showSnackBar("Login successful!");
     } on FirebaseAuthException catch (e) {
       String message;
+
       switch (e.code) {
         case 'user-not-found':
           message = "No account found with this email";
@@ -65,12 +69,15 @@ class _LoginScreenState extends State<LoginScreen> {
         default:
           message = e.message ?? "Login failed";
       }
+
       _showSnackBar(message);
     } catch (e) {
       debugPrint("Login error: $e");
       _showSnackBar("Something went wrong. Please try again.");
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -109,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Colors.teal,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -200,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
