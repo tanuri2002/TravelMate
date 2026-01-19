@@ -211,7 +211,7 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
     final numberOfPeople = trip['numberOfPeople'] ?? 1;
     final joinedUsers = (trip['joinedUsers'] as List?)?.length ?? 0;
     final spotsAvailable = numberOfPeople - joinedUsers;
-    final requestCount = 0; // TODO: Implement join requests
+    final requestCount = (trip['joinRequests'] as List?)?.length ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -450,11 +450,105 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
   }
 
   void _showRequestsDialog(Map<String, dynamic> trip) {
+    List<dynamic> joinRequests = trip['joinRequests'] ?? [];
+    
+    if (joinRequests.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Join Requests'),
+          content: const Text('No join requests yet.\n\nOther users can request to join your trip, and you can accept or decline them here.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Join Requests'),
-        content: const Text('No join requests yet.\n\nOther users can request to join your trip, and you can accept or decline them here.'),
+        title: Text('Join Requests (${joinRequests.length})'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: joinRequests.length,
+            itemBuilder: (context, index) {
+              final userId = joinRequests[index];
+              return FutureBuilder<DataSnapshot>(
+                future: FirebaseDatabase.instance
+                    .ref()
+                    .child('users')
+                    .child(userId)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Card(
+                      child: ListTile(
+                        leading: CircularProgressIndicator(),
+                        title: Text('Loading...'),
+                      ),
+                    );
+                  }
+
+                  String userName = 'User';
+                  String userEmail = userId;
+
+                  if (snapshot.hasData && snapshot.data?.value != null) {
+                    final userData = snapshot.data?.value as Map?;
+                    userName = userData?['name'] ?? userData?['username'] ?? 'User';
+                    userEmail = userData?['email'] ?? userId;
+                  }
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.teal,
+                        child: Text(
+                          userName[0].toUpperCase(),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      title: Text(userName),
+                      subtitle: Text(
+                        userEmail,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.check, color: Colors.green),
+                            onPressed: () {
+                              _acceptJoinRequest(trip, userId);
+                              Navigator.pop(context);
+                            },
+                            tooltip: 'Accept',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            onPressed: () {
+                              _declineJoinRequest(trip, userId);
+                              Navigator.pop(context);
+                            },
+                            tooltip: 'Decline',
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -463,6 +557,82 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _acceptJoinRequest(Map<String, dynamic> trip, String userId) async {
+    try {
+      final tripId = trip['tripId'];
+      
+      // Get current trip data
+      final snapshot = await _tripsRef.child(tripId).get();
+      if (!snapshot.exists) {
+        throw Exception('Trip not found');
+      }
+
+      final tripData = Map<String, dynamic>.from(snapshot.value as Map);
+      
+      // Remove from join requests
+      List<dynamic> joinRequests = List.from(tripData['joinRequests'] ?? []);
+      joinRequests.remove(userId);
+      
+      // Add to joined users
+      List<dynamic> joinedUsers = List.from(tripData['joinedUsers'] ?? []);
+      if (!joinedUsers.contains(userId)) {
+        joinedUsers.add(userId);
+      }
+
+      // Update both fields
+      await _tripsRef.child(tripId).child('joinRequests').set(joinRequests);
+      await _tripsRef.child(tripId).child('joinedUsers').set(joinedUsers);
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Join request accepted!')),
+      );
+      
+      _loadMyTrips();
+    } catch (e) {
+      debugPrint('Error accepting join request: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to accept: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _declineJoinRequest(Map<String, dynamic> trip, String userId) async {
+    try {
+      final tripId = trip['tripId'];
+      
+      // Get current trip data
+      final snapshot = await _tripsRef.child(tripId).get();
+      if (!snapshot.exists) {
+        throw Exception('Trip not found');
+      }
+
+      final tripData = Map<String, dynamic>.from(snapshot.value as Map);
+      
+      // Remove from join requests
+      List<dynamic> joinRequests = List.from(tripData['joinRequests'] ?? []);
+      joinRequests.remove(userId);
+
+      await _tripsRef.child(tripId).child('joinRequests').set(joinRequests);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Join request declined')),
+      );
+      
+      _loadMyTrips();
+    } catch (e) {
+      debugPrint('Error declining join request: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to decline: ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _deleteTrip(String tripId) async {

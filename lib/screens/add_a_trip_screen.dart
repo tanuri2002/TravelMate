@@ -140,6 +140,7 @@ class _AddATripScreenState extends State<AddATripScreen> {
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'open', // open, full, completed, cancelled
         'joinedUsers': [], // List of user IDs who joined
+        'joinRequests': [], // List of user IDs requesting to join
         'imageUrl': _selectedImage?.path ?? '', // Store local path for now
       };
 

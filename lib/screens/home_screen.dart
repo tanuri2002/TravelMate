@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:io';
 import 'add_a_trip_screen.dart';
 import 'join_trip_screen.dart';
 
@@ -11,6 +14,136 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final DatabaseReference _tripsRef = FirebaseDatabase.instance.ref().child('my_trips');
+  List<Map<String, dynamic>> _availableTrips = [];
+  List<Map<String, dynamic>> _requestedTrips = [];
+  List<Map<String, dynamic>> _upcomingTrips = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
+
+  Future<void> _loadTrips() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final snapshot = await _tripsRef.get();
+
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        List<Map<String, dynamic>> available = [];
+        List<Map<String, dynamic>> requested = [];
+        List<Map<String, dynamic>> upcoming = [];
+
+        data.forEach((key, value) {
+          final tripData = Map<String, dynamic>.from(value as Map);
+          tripData['tripId'] = key;
+
+          // Skip trips created by current user (those show in My Trips)
+          if (tripData['createdBy'] != user.uid && tripData['status'] == 'open') {
+            // Check if user has been accepted (in joinedUsers)
+            List<dynamic> joinedUsers = tripData['joinedUsers'] ?? [];
+            bool hasJoined = joinedUsers.contains(user.uid);
+
+            // Check if user has requested to join this trip
+            List<dynamic> joinRequests = tripData['joinRequests'] ?? [];
+            bool hasRequested = joinRequests.contains(user.uid);
+
+            if (hasJoined) {
+              upcoming.add(tripData);
+            } else if (hasRequested) {
+              requested.add(tripData);
+            } else {
+              available.add(tripData);
+            }
+          }
+        });
+
+        // Sort all lists by creation date (newest first)
+        available.sort((a, b) {
+          final aDate = DateTime.parse(a['createdAt'] ?? '');
+          final bDate = DateTime.parse(b['createdAt'] ?? '');
+          return bDate.compareTo(aDate);
+        });
+
+        requested.sort((a, b) {
+          final aDate = DateTime.parse(a['createdAt'] ?? '');
+          final bDate = DateTime.parse(b['createdAt'] ?? '');
+          return bDate.compareTo(aDate);
+        });
+
+        upcoming.sort((a, b) {
+          final aDate = DateTime.parse(a['createdAt'] ?? '');
+          final bDate = DateTime.parse(b['createdAt'] ?? '');
+          return bDate.compareTo(aDate);
+        });
+
+        setState(() {
+          _availableTrips = available;
+          _requestedTrips = requested;
+          _upcomingTrips = upcoming;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _availableTrips = [];
+          _requestedTrips = [];
+          _upcomingTrips = [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading trips: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _requestToJoinTrip(Map<String, dynamic> trip) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final tripId = trip['tripId'];
+      List<dynamic> currentRequests = trip['joinRequests'] ?? [];
+
+      if (!currentRequests.contains(user.uid)) {
+        currentRequests.add(user.uid);
+        await _tripsRef.child(tripId).child('joinRequests').set(currentRequests);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Join request sent successfully!')),
+        );
+
+        _loadTrips(); // Reload to update UI
+      }
+    } catch (e) {
+      debugPrint('Error requesting to join: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send join request')),
+      );
+    }
+  }
+
+  String _formatDateRange(String startDate, String endDate) {
+    final start = DateTime.parse(startDate);
+    final end = DateTime.parse(endDate);
+    return '${_formatDate(start)} - ${_formatDate(end)}';
+  }
+
+  String _formatDate(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}';
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -62,13 +195,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _buildActionButton(
                       label: 'Join a Trip',
                       icon: Icons.group_add_outlined,
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const JoinTripScreen(),
                           ),
                         );
+                        _loadTrips(); // Reload trips after returning
                       },
                     ),
                   ),
@@ -78,115 +212,173 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Scrollable content
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your Upcoming Trips',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 240,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 5,
-                        itemBuilder: (context, index) {
-                          // Sri Lankan beach/coastal spots with working images
-                          final locations = [
-                            'Mirissa, Sri Lanka',
-                            'Unawatuna, Sri Lanka',
-                            'Arugam Bay, Sri Lanka',
-                            'Bentota, Sri Lanka',
-                            'Weligama, Sri Lanka',
-                          ];
-                          final images = [
-                            'https://images.unsplash.com/photo-1544750040-4ea9b8a27d38?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fHNyaWxhbmthfGVufDB8fDB8fHww', // Mirissa beach
-                            'https://images.unsplash.com/photo-1607896477672-21ffa8e2b36e?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8dHVydGxlJTIwYmVhY2h8ZW58MHx8MHx8fDA%3D', // Unawatuna / coastal
-                            'https://images.unsplash.com/photo-1552055568-f8c4fb8c6320?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YXJ1Z2FtJTIwYmF5fGVufDB8fDB8fHww', // Arugam Bay surf/beach
-                            'https://images.unsplash.com/photo-1706257023817-851555857321?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8YmVudG90YXxlbnwwfHwwfHx8MA%3D%3D', // Bentota (updated working variant)
-                            'https://images.unsplash.com/photo-1453210110568-1384e93a200e?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8d2VsaWdhbWF8ZW58MHx8MHx8fDA%3D', // Weligama / beach
-                          ];
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadTrips,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Upcoming Trips Section (Trips user has joined)
+                            if (_upcomingTrips.isNotEmpty) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Upcoming Trips',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      '${_upcomingTrips.length} trip${_upcomingTrips.length > 1 ? 's' : ''}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 300,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _upcomingTrips.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildRealTripCard(
+                                      _upcomingTrips[index],
+                                      isJoined: true,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                            ],
 
-                          return _buildTripCard(
-                            location: locations[index],
-                            imageUrl: images[index],
-                            spotsLeft: 5 - index, // 5,4,3,2,1 for variety
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 32),
+                            // Requested Trips Section
+                            if (_requestedTrips.isNotEmpty) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Pending Requests',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      '${_requestedTrips.length} pending',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 300,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _requestedTrips.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildRealTripCard(
+                                      _requestedTrips[index],
+                                      isPending: true,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                            ],
 
-                    const Text(
-                      'Popular Destinations',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                            // Available Trips Section
+                            const Text(
+                              'Available Trips',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_availableTrips.isEmpty)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32.0),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.travel_explore,
+                                        size: 80,
+                                        color: Colors.grey[300],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No trips available',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Be the first to create a trip!',
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              SizedBox(
+                                height: 300,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _availableTrips.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildRealTripCard(
+                                      _availableTrips[index],
+                                    );
+                                  },
+                                ),
+                              ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 260,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 6,
-                        itemBuilder: (context, index) {
-                          // Iconic Sri Lankan spots with fresh working Unsplash links
-                          final titles = [
-                            'Sigiriya, Sri Lanka',
-                            'Ella, Sri Lanka',
-                            'Galle Fort, Sri Lanka',
-                            'Kandy, Sri Lanka',
-                            'Nuwara Eliya, Sri Lanka',
-                            'Yala National Park, Sri Lanka',
-                          ];
-                          final organizers = [
-                            'Organized by Kavika Silva',
-                            'Organized by Tanvi Jayawardena',
-                            'Organized by Amara Perera',
-                            'Organized by Ruwan Fernando',
-                            'Organized by Nadeesha Gomes',
-                            'Organized by Sachithra Mendis',
-                          ];
-                          final images = [
-                            'https://www.google.com/url?sa=t&source=web&rct=j&url=https%3A%2F%2Funsplash.com%2Fphotos%2Fbrown-rock-formation-on-green-grass-field-during-daytime-smUAKwMT8XA&ved=0CBYQjRxqFwoTCIjng-q-l5IDFQAAAAAdAAAAABAk&opi=89978449', // Sigiriya rock (working variant)
-                            'https://images.unsplash.com/photo-1585503418535-1ab4e1f0b0a2?w=800', // Ella Nine Arch Bridge area
-                            'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800', // Galle Fort
-                            'https://images.unsplash.com/photo-1599669454699-248893623440?w=800', // Kandy scenery
-                            'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800', // Nuwara Eliya tea country
-                            'https://images.unsplash.com/photo-1590523277543-a94d519337bc?w=800', // Yala wildlife/safari vibe
-                          ];
-                          final tagsList = [
-                            ['History', 'Adventure', 'UNESCO'],
-                            ['Hiking', 'Tea Country', 'Scenic'],
-                            ['Colonial', 'Fort', 'Culture'],
-                            ['Temple', 'Cultural', 'Heritage'],
-                            ['Tea Plantations', 'Cool Climate', 'Nature'],
-                            ['Safari', 'Wildlife', 'Leopard Spotting'],
-                          ];
-
-                          return _buildPopularDestinationCard(
-                            title: titles[index],
-                            organizer: organizers[index],
-                            imageUrl: images[index],
-                            tags: tagsList[index],
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -210,8 +402,210 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // _buildHeader(), _buildActionButton(), _buildTripCard(), _buildPopularDestinationCard() remain unchanged...
-  // (copy them from your previous version if needed – no changes there)
+  Widget _buildRealTripCard(Map<String, dynamic> trip, {bool isPending = false, bool isJoined = false}) {
+    final numberOfPeople = trip['numberOfPeople'] ?? 1;
+    final joinedUsers = (trip['joinedUsers'] as List?)?.length ?? 0;
+    final spotsLeft = numberOfPeople - joinedUsers;
+
+    return Container(
+      width: 300,
+      margin: const EdgeInsets.only(right: 16),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Stack(
+              children: [
+                Container(
+                  height: 120,
+                  width: double.infinity,
+                  child: trip['imageUrl'] != null && trip['imageUrl'].toString().isNotEmpty
+                      ? Image.file(
+                          File(trip['imageUrl']),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholderImage();
+                          },
+                        )
+                      : _buildPlaceholderImage(),
+                ),
+                if (isPending)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Pending',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (isJoined)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Joined',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            // Trip details
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trip['destination'] ?? 'Unknown',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _formatDateRange(
+                      trip['startDate'] ?? DateTime.now().toIso8601String(),
+                      trip['endDate'] ?? DateTime.now().toIso8601String(),
+                    ),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.people, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$spotsLeft spots left',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                      Text(
+                        trip['budget'] ?? 'Medium',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (!isPending && !isJoined)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _requestToJoinTrip(trip),
+                        icon: const Icon(Icons.send, size: 14),
+                        label: const Text('Request to Join', style: TextStyle(fontSize: 13)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (isPending)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Waiting for approval',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (isJoined)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'You\'re going on this trip!',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.teal.shade300,
+            Colors.teal.shade600,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.landscape,
+          size: 50,
+          color: Colors.white.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
 
   Widget _buildHeader() {
     return Container(
@@ -298,136 +692,6 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 2,
         padding: const EdgeInsets.symmetric(vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  Widget _buildTripCard({
-    required String location,
-    required String imageUrl,
-    required int spotsLeft,
-  }) {
-    return Container(
-      width: 280,
-      margin: const EdgeInsets.only(right: 16),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(imageUrl, fit: BoxFit.cover),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      location,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$spotsLeft spots left',
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPopularDestinationCard({
-    required String title,
-    required String organizer,
-    required String imageUrl,
-    required List<String> tags,
-  }) {
-    return Container(
-      width: 240,
-      margin: const EdgeInsets.only(right: 16),
-      child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Image.network(
-                imageUrl,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    organizer,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: tags.map((tag) {
-                      return Chip(
-                        label: Text(tag, style: const TextStyle(fontSize: 12)),
-                        backgroundColor: Colors.teal.shade100,
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
