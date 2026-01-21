@@ -12,7 +12,9 @@ class ReviewService {
   }
 
   double getAverageRating(String destinationId) {
-    final destinationReviews = _reviews.where((r) => r.destinationId == destinationId).toList();
+    final destinationReviews = _reviews
+        .where((r) => r.destinationId == destinationId)
+        .toList();
     if (destinationReviews.isEmpty) return 0.0;
 
     double total = destinationReviews.fold(0, (sum, r) => sum + r.rating);
